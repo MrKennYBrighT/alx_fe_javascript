@@ -1,57 +1,24 @@
-// Load quotes from local storage or set defaults
+// Fallback quotes
 let quotes = JSON.parse(localStorage.getItem("quotes")) || [
   { text: "Stay hungry, stay foolish.", category: "Motivation" },
-  { text: "Code is like humor. When you have to explain it, it’s bad.", category: "Tech" },
-  { text: "Simplicity is the soul of efficiency.", category: "Design" }
+  { text: "Good code is its own best documentation.", category: "Tech" }
 ];
 
 // DOM elements
 const quoteDisplay = document.getElementById("quoteDisplay");
-const newQuoteBtn = document.getElementById("newQuote");
 const categoryFilter = document.getElementById("categoryFilter");
+const syncStatus = document.getElementById("syncStatus");
+const newQuoteBtn = document.getElementById("newQuote");
 
-// Store and update quotes
+// Save quotes to local storage
 function saveQuotes() {
   localStorage.setItem("quotes", JSON.stringify(quotes));
 }
 
-// Display a random quote from the selected filter
-function showRandomQuote() {
-  const selected = categoryFilter.value;
-  const filtered = selected === "all" ? quotes : quotes.filter(q => q.category === selected);
-
-  if (filtered.length === 0) {
-    quoteDisplay.innerHTML = "No quotes in this category.";
-    return;
-  }
-
-  const randomQuote = filtered[Math.floor(Math.random() * filtered.length)];
-  quoteDisplay.innerHTML = `"${randomQuote.text}" — ${randomQuote.category}`;
-
-  sessionStorage.setItem("lastViewedQuote", JSON.stringify(randomQuote));
-}
-
-// Add a new quote to the array and update storage
-function addQuote() {
-  const quoteText = document.getElementById("newQuoteText").value.trim();
-  const categoryText = document.getElementById("newQuoteCategory").value.trim();
-
-  if (quoteText && categoryText) {
-    quotes.push({ text: quoteText, category: categoryText });
-    saveQuotes();
-    document.getElementById("newQuoteText").value = "";
-    document.getElementById("newQuoteCategory").value = "";
-
-    populateCategories(); // Update dropdowns with new category if needed
-    filterQuotes();       // Re-apply filter and show updated display
-  }
-}
-
-// Populate category dropdown with unique categories
+// Populate filter dropdown
 function populateCategories() {
   const categories = [...new Set(quotes.map(q => q.category))];
   const previous = categoryFilter.value;
-
   categoryFilter.innerHTML = `<option value="all">All Categories</option>`;
   categories.forEach(cat => {
     const option = document.createElement("option");
@@ -60,33 +27,59 @@ function populateCategories() {
     categoryFilter.appendChild(option);
   });
 
-  // Restore previous or saved selection
   const stored = localStorage.getItem("lastSelectedCategory");
   categoryFilter.value = stored || previous || "all";
 }
 
-// Filter quotes list based on selected category and display all
+// Filter quotes by selected category
 function filterQuotes() {
-  const selectedCategory = categoryFilter.value;
-  localStorage.setItem("lastSelectedCategory", selectedCategory);
+  const category = categoryFilter.value;
+  localStorage.setItem("lastSelectedCategory", category);
+  const filtered = category === "all" ? quotes : quotes.filter(q => q.category === category);
 
-  const filteredQuotes = selectedCategory === "all"
-    ? quotes
-    : quotes.filter(q => q.category === selectedCategory);
-
-  if (filteredQuotes.length === 0) {
+  if (filtered.length === 0) {
     quoteDisplay.innerHTML = "No quotes available in this category.";
     return;
   }
 
-  // Display first match (or customize to show a list if desired)
-  const quote = filteredQuotes[0];
+  const quote = filtered[0];
   quoteDisplay.innerHTML = `"${quote.text}" — ${quote.category}`;
 }
 
-// Export all quotes as JSON file
+// Show random quote based on filter
+function showRandomQuote() {
+  const category = categoryFilter.value;
+  const filtered = category === "all" ? quotes : quotes.filter(q => q.category === category);
+
+  if (filtered.length === 0) {
+    quoteDisplay.innerHTML = "No quotes available.";
+    return;
+  }
+
+  const q = filtered[Math.floor(Math.random() * filtered.length)];
+  quoteDisplay.innerHTML = `"${q.text}" — ${q.category}`;
+  sessionStorage.setItem("lastViewedQuote", JSON.stringify(q));
+}
+
+// Add a new quote
+function addQuote() {
+  const text = document.getElementById("newQuoteText").value.trim();
+  const category = document.getElementById("newQuoteCategory").value.trim();
+
+  if (text && category) {
+    quotes.push({ text, category });
+    saveQuotes();
+    populateCategories();
+    filterQuotes();
+    document.getElementById("newQuoteText").value = "";
+    document.getElementById("newQuoteCategory").value = "";
+  }
+}
+
+// Export quotes as downloadable JSON
 function exportToJsonFile() {
-  const blob = new Blob([JSON.stringify(quotes, null, 2)], { type: "application/json" });
+  const data = JSON.stringify(quotes, null, 2);
+  const blob = new Blob([data], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -95,7 +88,7 @@ function exportToJsonFile() {
   URL.revokeObjectURL(url);
 }
 
-// Import quotes from a JSON file upload
+// Import quotes from uploaded file
 function importFromJsonFile(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -103,9 +96,9 @@ function importFromJsonFile(event) {
   const reader = new FileReader();
   reader.onload = function (e) {
     try {
-      const data = JSON.parse(e.target.result);
-      if (Array.isArray(data)) {
-        quotes.push(...data);
+      const imported = JSON.parse(e.target.result);
+      if (Array.isArray(imported)) {
+        quotes.push(...imported);
         saveQuotes();
         populateCategories();
         filterQuotes();
@@ -120,7 +113,44 @@ function importFromJsonFile(event) {
   reader.readAsText(file);
 }
 
-// Initialize app on page load
+// Show sync message
+function showSyncNotification(message) {
+  syncStatus.textContent = message;
+  setTimeout(() => (syncStatus.textContent = ""), 3000);
+}
+
+// Simulate server sync using JSONPlaceholder
+function syncWithServer() {
+  fetch("https://jsonplaceholder.typicode.com/posts")
+    .then(res => res.json())
+    .then(data => {
+      // Convert JSONPlaceholder posts to our quote format
+      const serverQuotes = data.slice(0, 5).map(post => ({
+        text: post.title,
+        category: "Synced"
+      }));
+
+      // Merge: server takes precedence
+      const local = JSON.parse(localStorage.getItem("quotes")) || [];
+      const merged = [
+        ...serverQuotes,
+        ...local.filter(
+          lq => !serverQuotes.some(sq => sq.text === lq.text && sq.category === lq.category)
+        )
+      ];
+
+      quotes = merged;
+      saveQuotes();
+      populateCategories();
+      filterQuotes();
+      showSyncNotification("Synced with server (JSONPlaceholder)");
+    })
+    .catch(() => showSyncNotification("Failed to sync with server"));
+}
+
+// Setup
 newQuoteBtn.addEventListener("click", showRandomQuote);
 populateCategories();
 filterQuotes();
+syncWithServer();
+setInterval(syncWithServer, 15000); // Sync every 15 seconds
