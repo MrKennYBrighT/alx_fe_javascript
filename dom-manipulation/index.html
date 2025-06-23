@@ -4,9 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Dynamic Quote Generator</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <h1>Dynamic Quote Generator</h1>
+
+  <!-- Theme Toggle -->
+  <button id="themeToggle">Dark Mode</button>
 
   <!-- Category Filter -->
   <label for="categoryFilter">Filter by category:</label>
@@ -14,8 +18,8 @@
     <option value="all">All Categories</option>
   </select>
 
-  <!-- Sync Notification -->
-  <p id="syncStatus" style="color: green; font-weight: bold;"></p>
+  <!-- Sync Status -->
+  <p id="syncStatus"></p>
 
   <!-- Quote Display -->
   <div id="quoteDisplay"></div>
