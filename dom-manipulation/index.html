@@ -12,13 +12,13 @@
   <label for="categoryFilter">Filter by category:</label>
   <select id="categoryFilter" onchange="filterQuotes()">
     <option value="all">All Categories</option>
-    <!-- Categories will be populated dynamically -->
   </select>
 
-  <!-- Display Area -->
-  <div id="quoteDisplay"></div>
+  <!-- Sync Status Display -->
+  <p id="syncStatus" style="color: green; font-weight: bold;"></p>
 
-  <!-- Show Quote Button -->
+  <!-- Quote Display -->
+  <div id="quoteDisplay"></div>
   <button id="newQuote">Show New Quote</button>
 
   <!-- Add Quote Form -->
@@ -28,11 +28,10 @@
     <button onclick="addQuote()">Add Quote</button>
   </div>
 
-  <!-- Import / Export -->
+  <!-- Import & Export -->
   <input type="file" id="importFile" accept=".json" onchange="importFromJsonFile(event)" />
   <button onclick="exportToJsonFile()">Export Quotes</button>
 
-  <!-- JavaScript -->
   <script src="script.js"></script>
 </body>
 </html>

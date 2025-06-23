@@ -1,21 +1,21 @@
-// ✅ 1. Define and load quotes from localStorage or fallback
+// Initialize or load saved quotes
 let quotes = JSON.parse(localStorage.getItem("quotes")) || [
-  { text: "Start where you are. Use what you have. Do what you can.", category: "Motivation" },
-  { text: "First, solve the problem. Then, write the code.", category: "Tech" }
+  { text: "Stay hungry, stay foolish.", category: "Motivation" },
+  { text: "Code is like humor. When you have to explain it, it’s bad.", category: "Tech" }
 ];
 
-// ✅ 2. DOM references
+// DOM references
 const quoteDisplay = document.getElementById("quoteDisplay");
 const categoryFilter = document.getElementById("categoryFilter");
 const syncStatus = document.getElementById("syncStatus");
 const newQuoteBtn = document.getElementById("newQuote");
 
-// ✅ 3. Save to local storage
+// Save to localStorage
 function saveQuotes() {
   localStorage.setItem("quotes", JSON.stringify(quotes));
 }
 
-// ✅ 4. Populate category filter dropdown
+// Populate category filter
 function populateCategories() {
   const categories = [...new Set(quotes.map(q => q.category))];
   const previous = categoryFilter.value;
@@ -26,11 +26,11 @@ function populateCategories() {
     option.textContent = cat;
     categoryFilter.appendChild(option);
   });
-  const savedFilter = localStorage.getItem("lastSelectedCategory");
-  categoryFilter.value = savedFilter || previous || "all";
+  const stored = localStorage.getItem("lastSelectedCategory");
+  categoryFilter.value = stored || previous || "all";
 }
 
-// ✅ 5. Apply category filter
+// Filter quotes and display first match
 function filterQuotes() {
   const selected = categoryFilter.value;
   localStorage.setItem("lastSelectedCategory", selected);
@@ -43,7 +43,7 @@ function filterQuotes() {
   quoteDisplay.innerHTML = `"${quote.text}" — ${quote.category}`;
 }
 
-// ✅ 6. Show random quote in selected category
+// Show a random quote from filtered selection
 function showRandomQuote() {
   const selected = categoryFilter.value;
   const filtered = selected === "all" ? quotes : quotes.filter(q => q.category === selected);
@@ -56,7 +56,7 @@ function showRandomQuote() {
   sessionStorage.setItem("lastViewedQuote", JSON.stringify(random));
 }
 
-// ✅ 7. Add a new quote from the form
+// Add a new quote
 function addQuote() {
   const text = document.getElementById("newQuoteText").value.trim();
   const category = document.getElementById("newQuoteCategory").value.trim();
@@ -68,11 +68,11 @@ function addQuote() {
     filterQuotes();
     document.getElementById("newQuoteText").value = "";
     document.getElementById("newQuoteCategory").value = "";
-    postQuoteToServer(newQuote); // Post immediately
+    postQuoteToServer(newQuote);
   }
 }
 
-// ✅ 8. Export quotes to JSON file
+// Export quotes to file
 function exportToJsonFile() {
   const blob = new Blob([JSON.stringify(quotes, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -83,7 +83,7 @@ function exportToJsonFile() {
   URL.revokeObjectURL(url);
 }
 
-// ✅ 9. Import quotes from uploaded JSON
+// Import from file
 function importFromJsonFile(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -98,73 +98,68 @@ function importFromJsonFile(event) {
         filterQuotes();
         alert("Quotes imported successfully!");
       } else {
-        alert("Invalid file.");
+        alert("Invalid JSON.");
       }
     } catch {
-      alert("Error parsing file.");
+      alert("Import error.");
     }
   };
   reader.readAsText(file);
 }
 
-// ✅ 10. NEW: Fetch quotes from mock server
-function fetchQuotesFromServer() {
-  return fetch("https://jsonplaceholder.typicode.com/posts")
-    .then(response => response.json())
-    .then(data => {
-      // Convert to quote format
-      return data.slice(0, 5).map(post => ({
-        text: post.title,
-        category: "Synced"
-      }));
-    });
+// Notification handler
+function showSyncNotification(message) {
+  syncStatus.innerText = message;
+  setTimeout(() => (syncStatus.innerText = ""), 3000);
 }
 
-// ✅ 11. NEW: Post a single quote to server (simulated)
-function postQuoteToServer(quote) {
-  fetch("https://jsonplaceholder.typicode.com/posts", {
+// ✅ REQUIRED FUNCTION: Async fetch from mock server
+async function fetchQuotesFromServer() {
+  const response = await fetch("https://jsonplaceholder.typicode.com/posts");
+  const data = await response.json();
+  return data.slice(0, 5).map(post => ({
+    text: post.title,
+    category: "Synced"
+  }));
+}
+
+// ✅ REQUIRED FUNCTION: Async post to mock server
+async function postQuoteToServer(quote) {
+  await fetch("https://jsonplaceholder.typicode.com/posts", {
     method: "POST",
     body: JSON.stringify(quote),
-    headers: { "Content-type": "application/json; charset=UTF-8" }
-  })
-    .then(res => res.json())
-    .then(() => {
-      showSyncNotification("Quote synced to server.");
-    })
-    .catch(() => {
-      showSyncNotification("Failed to sync with server.");
-    });
+    headers: { "Content-Type": "application/json" }
+  });
+  showSyncNotification("Quote posted to server.");
 }
 
-// ✅ 12. NEW: Sync local and server quotes
-function syncQuotes() {
-  fetchQuotesFromServer()
-    .then(serverQuotes => {
-      const stored = JSON.parse(localStorage.getItem("quotes")) || [];
-      const merged = [
-        ...serverQuotes,
-        ...stored.filter(local => !serverQuotes.some(server => server.text === local.text))
-      ];
-      quotes = merged;
-      saveQuotes();
-      populateCategories();
-      filterQuotes();
-      showSyncNotification("Quotes synced from server.");
-    })
-    .catch(() => {
-      showSyncNotification("Failed to sync with server.");
-    });
+// ✅ REQUIRED FUNCTION: Sync local + server quotes (server wins)
+async function syncQuotes() {
+  try {
+    const serverQuotes = await fetchQuotesFromServer();
+    const stored = JSON.parse(localStorage.getItem("quotes")) || [];
+    const merged = [
+      ...serverQuotes,
+      ...stored.filter(
+        local =>
+          !serverQuotes.some(
+            server => server.text === local.text && server.category === local.category
+          )
+      )
+    ];
+    quotes = merged;
+    saveQuotes();
+    populateCategories();
+    filterQuotes();
+    showSyncNotification("Synced with server.");
+  } catch {
+    showSyncNotification("Sync failed.");
+  }
 }
 
-// ✅ 13. NEW: Visual sync feedback
-function showSyncNotification(message) {
-  syncStatus.textContent = message;
-  setTimeout(() => (syncStatus.textContent = ""), 3000);
-}
-
-// ✅ 14. Initialize
+// Initialize app
 newQuoteBtn.addEventListener("click", showRandomQuote);
 populateCategories();
 filterQuotes();
-syncQuotes();
-setInterval(syncQuotes, 15000); // ⏲️ Sync every 15 seconds
+syncQuotes(); // initial fetch
+setInterval(syncQuotes, 15000); // periodic sync
